@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>后台管理中心 - 肥波的淤青</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+        .navbar { background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%); padding: 15px 30px; }
+        .stat-card { border: none; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); transition: transform 0.2s; }
+        .stat-card:hover { transform: translateY(-5px); }
+        .stat-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; }
+        .table-card { border: none; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); overflow: hidden; }
+        .table th { border-top: none; background-color: #f1f5f9; color: #475569; font-weight: 600; }
+        .table td { vertical-align: middle; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-dark mb-4">
+    <div class="container-fluid">
+        <span class="navbar-brand mb-0 h1 fw-bold"><i class="bi bi-shield-lock-fill me-2"></i>肥波的淤青 - 管理中心</span>
+        <span class="text-white opacity-75">Localhost 专属访问</span>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card stat-card p-4">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon bg-primary bg-opacity-10 text-primary me-3"><i class="bi bi-people-fill"></i></div>
+                    <div>
+                        <h6 class="text-muted mb-1">已注册用户</h6>
+                        <h3 class="mb-0 fw-bold" id="stat-total-users">-</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card stat-card p-4">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon bg-success bg-opacity-10 text-success me-3"><i class="bi bi-circle-fill"></i></div>
+                    <div>
+                        <h6 class="text-muted mb-1">当前在线人数</h6>
+                        <h3 class="mb-0 fw-bold" id="stat-online-users">-</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card stat-card p-4">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon bg-warning bg-opacity-10 text-warning me-3"><i class="bi bi-stars"></i></div>
+                    <div>
+                        <h6 class="text-muted mb-1">总动态数量</h6>
+                        <h3 class="mb-0 fw-bold" id="stat-total-moments">-</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card table-card mb-5">
+        <div class="card-header bg-white p-4 border-bottom-0">
+            <h5 class="mb-0 fw-bold">用户权限管理</h5>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th class="ps-4">ID</th>
+                        <th>账号 (Username)</th>
+                        <th>当前昵称</th>
+                        <th>状态</th>
+                        <th>权限级别</th>
+                        <th class="pe-4 text-end">操作</th>
+                    </tr>
+                </thead>
+                <tbody id="user-table-body">
+                    <tr><td colspan="6" class="text-center py-4 text-muted">加载中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    function loadStats() {
+        $.get('/api/admin/stats', function(data) {
+            $("#stat-total-users").text(data.total_users);
+            $("#stat-online-users").text(data.online_count);
+            $("#stat-total-moments").text(data.total_moments);
+        });
+    }
+
+    function loadUsers() {
+        $.get('/api/admin/users', function(users) {
+            let html = '';
+            users.forEach(u => {
+                let onlineBadge = u.is_online ? '<span class="badge bg-success">在线</span>' : '<span class="badge bg-secondary">离线</span>';
+                let roleBadge = u.is_admin ? '<span class="badge bg-danger">超级管理员</span>' : '<span class="badge bg-light text-dark border">普通用户</span>';
+                let btnHtml = u.is_admin
+                    ? `<button class="btn btn-sm btn-outline-secondary" onclick="toggleAdmin(${u.id})">撤销管理员</button>`
+                    : `<button class="btn btn-sm btn-primary" onclick="toggleAdmin(${u.id})">设为管理员</button>`;
+
+                html += `
+                <tr>
+                    <td class="ps-4">#${u.id}</td>
+                    <td><span class="fw-medium">${u.username}</span></td>
+                    <td>${u.nickname || u.username}</td>
+                    <td>${onlineBadge}</td>
+                    <td>${roleBadge}</td>
+                    <td class="pe-4 text-end">${btnHtml}</td>
+                </tr>`;
+            });
+            $("#user-table-body").html(html);
+        });
+    }
+
+    function toggleAdmin(userId) {
+        if(confirm("确定要更改该用户的管理员权限吗？")) {
+            $.post(`/api/admin/toggle_admin/${userId}`, function(res) {
+                if(res.ok) { loadUsers(); }
+            });
+        }
+    }
+
+    $(function() {
+        loadStats();
+        loadUsers();
+        // 每 10 秒自动刷新一次面板数据
+        setInterval(() => {
+            loadStats();
+            loadUsers();
+        }, 10000);
+    });
+</script>
+
+</body>
+</html>

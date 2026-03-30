@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>肥波的淤青</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root { --primary: #6366f1; --primary-dark: #4f46e5; --bg: #f8fafc; --surface: #ffffff; --text: #1e293b; --text-muted: #64748b; --border: #e2e8f0; }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        html, body { height: 100%; background: var(--bg); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--text); overflow: hidden; }
+        .app-container { height: 100vh; max-width: 500px; margin: 0 auto; background: var(--surface); display: flex; flex-direction: column; position: relative; box-shadow: 0 0 40px rgba(0,0,0,0.08); }
+        .page { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+        .page.active { display: flex; }
+        .top-bar { background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); color: white; padding: 16px 20px; padding-top: calc(16px + env(safe-area-inset-top)); display: flex; align-items: center; justify-content: space-between; min-height: 60px; box-shadow: 0 2px 10px rgba(99, 102, 241, 0.2); }
+        .top-bar h1 { font-size: 18px; font-weight: 700; margin: 0; letter-spacing: -0.3px; }
+        .chat-area { flex: 1; overflow-y: auto; padding: 20px; background: var(--bg); scroll-behavior: smooth; }
+        .message { display: flex; margin-bottom: 20px; animation: slideIn 0.3s ease; position: relative; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .message.self { flex-direction: row-reverse; }
+        .avatar { width: 40px; height: 40px; border-radius: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 16px; flex-shrink: 0; box-shadow: 0 4px 12px rgba(0,0,0,0.1); overflow: hidden; }
+        .message-content { max-width: 70%; margin: 0 12px; }
+        .message-name { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
+        .message.self .message-name { text-align: right; }
+        .bubble { padding: 12px 16px; border-radius: 18px; word-break: break-word; line-height: 1.5; font-size: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .message:not(.self) .bubble { background: white; border-bottom-left-radius: 4px; }
+        .message.self .bubble { background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); color: white; border-bottom-right-radius: 4px; }
+        .bubble img { max-width: 100%; border-radius: 10px; margin-top: 8px; }
+        .bubble audio { width: 200px; margin-top: 8px; }
+        .delete-msg-btn { position: absolute; top: 0; right: 0; color: #ef4444; font-size: 14px; cursor: pointer; opacity: 0; transition: opacity 0.2s; padding: 5px; }
+        .message:hover .delete-msg-btn { opacity: 1; }
+        .input-area { padding: 12px 16px; padding-bottom: calc(12px + env(safe-area-inset-bottom)); background: white; border-top: 1px solid var(--border); display: flex; gap: 10px; align-items: center; }
+        .input-area input { flex: 1; padding: 12px 18px; border: none; border-radius: 24px; background: var(--bg); outline: none; font-size: 15px; transition: all 0.2s; }
+        .input-area input:focus { background: #eef2ff; }
+        .icon-btn { width: 44px; height: 44px; border-radius: 50%; border: none; background: var(--bg); color: var(--text); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; font-size: 18px; }
+        .icon-btn:hover { background: #eef2ff; color: var(--primary); transform: scale(1.05); }
+        .icon-btn.primary { background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); color: white; }
+        .icon-btn.recording { background: #ef4444; color: white; animation: pulse 1s infinite; }
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+        .bottom-nav { background: white; border-top: 1px solid var(--border); display: flex; padding: 8px 0; padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
+        .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 6px; cursor: pointer; transition: all 0.2s; color: var(--text-muted); position: relative; }
+        .nav-item:hover, .nav-item.active { color: var(--primary); }
+        .nav-item i { font-size: 22px; margin-bottom: 4px; }
+        .nav-item span { font-size: 11px; font-weight: 600; }
+        .friends-list { flex: 1; overflow-y: auto; }
+        .section-title { font-size: 13px; font-weight: 700; color: var(--text-muted); padding: 16px 20px 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .friend-item { display: flex; align-items: center; padding: 14px 20px; cursor: pointer; transition: background 0.2s; }
+        .friend-item:hover { background: var(--bg); }
+        .friend-item .avatar { margin-right: 14px; }
+        .friend-info { flex: 1; }
+        .friend-name { font-weight: 600; font-size: 15px; margin-bottom: 2px; }
+        .friend-status { font-size: 13px; color: var(--text-muted); }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #22c55e; display: inline-block; margin-right: 6px; }
+        .status-dot.offline { background: #cbd5e1; }
+        .post-card { background: white; margin: 12px 16px; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.06); position: relative; }
+        .post-header { display: flex; align-items: center; padding: 14px 16px; }
+        .post-header .avatar { margin-right: 12px; }
+        .post-author { flex: 1; }
+        .post-author-name { font-weight: 600; font-size: 15px; }
+        .post-time { font-size: 12px; color: var(--text-muted); }
+        .post-content { padding: 0 16px 12px; font-size: 15px; line-height: 1.6; }
+        .post-images { padding: 0 16px 12px; }
+        .post-images img { max-width: 100%; border-radius: 8px; max-height: 300px; object-fit: cover; cursor: pointer; }
+        .post-actions { display: flex; padding: 10px 16px; border-top: 1px solid var(--border); }
+        .action-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--text-muted); font-size: 14px; cursor: pointer; padding: 6px; border-radius: 8px; transition: all 0.2s; }
+        .action-btn:hover { background: var(--bg); color: var(--primary); }
+        .action-btn.liked { color: #ef4444; }
+        .action-btn.favorited { color: #f59e0b; }
+        .delete-btn { position: absolute; top: 16px; right: 16px; color: #ef4444; cursor: pointer; font-size: 18px; padding: 5px; opacity: 0.7; transition: opacity 0.2s; }
+        .delete-btn:hover { opacity: 1; }
+        .comments-section { background: var(--bg); padding: 12px 16px; border-top: 1px solid var(--border); display: none; }
+        .comment-item { font-size: 14px; margin-bottom: 8px; line-height: 1.4; }
+        .comment-user { font-weight: 600; color: var(--primary-dark); margin-right: 6px; }
+        .comment-input-wrap { display: flex; gap: 8px; margin-top: 10px; }
+        .comment-input-wrap input { flex: 1; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 20px; outline: none; font-size: 13px; }
+        .comment-send-btn { background: var(--primary); color: white; border: none; border-radius: 20px; padding: 0 14px; font-size: 13px; cursor: pointer; }
+        .create-post { padding: 16px; background: white; margin: 12px 16px; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+        .create-post textarea { width: 100%; border: none; outline: none; resize: none; font-size: 15px; min-height: 80px; }
+        .create-post-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; }
+        .add-btn { padding: 6px 14px; border-radius: 16px; border: none; background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); color: white; font-size: 13px; font-weight: 600; cursor: pointer; }
+        .profile-header { background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); padding: 30px 20px; padding-top: calc(30px + env(safe-area-inset-top)); text-align: center; color: white; }
+        .profile-avatar { width: 90px; height: 90px; border-radius: 24px; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; font-size: 36px; font-weight: 700; border: 3px solid rgba(255,255,255,0.3); cursor: pointer; transition: transform 0.2s; overflow: hidden; position: relative; }
+        .profile-avatar:hover { transform: scale(1.05); }
+        .profile-avatar:hover::after { content: "更换"; position: absolute; bottom: 0; width: 100%; background: rgba(0,0,0,0.5); font-size: 12px; padding: 4px 0; }
+        .profile-name { font-size: 22px; font-weight: 700; margin-bottom: 4px; cursor: pointer; }
+        .profile-id { font-size: 14px; opacity: 0.8; }
+        .menu-list { margin: 16px; border-radius: 16px; overflow: hidden; background: white; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+        .menu-item { display: flex; align-items: center; padding: 16px 20px; cursor: pointer; transition: background 0.2s; border-bottom: 1px solid var(--border); }
+        .menu-item:last-child { border-bottom: none; }
+        .menu-item:hover { background: var(--bg); }
+        .menu-item i { font-size: 20px; color: var(--primary); margin-right: 14px; width: 24px; text-align: center; }
+        .menu-item span { flex: 1; font-weight: 500; }
+        .menu-item .arrow { color: var(--text-muted); }
+        .notification { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: rgba(0,0,0,0.85); color: white; padding: 12px 24px; border-radius: 12px; font-size: 14px; font-weight: 500; z-index: 9999; transition: transform 0.3s ease; backdrop-filter: blur(10px); }
+        .notification.show { transform: translateX(-50%) translateY(0); }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes jump { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+        .radar-icon { animation: jump 2s infinite ease-in-out; display: inline-block; }
+        .form-select { padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border); outline: none; width: 100%; background-color: var(--bg); font-size: 15px; color: var(--text); }
+        .friend-popup { position: absolute; bottom: 80px; left: 20px; right: 20px; background: white; padding: 20px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); z-index: 500; text-align: center; animation: slideIn 0.3s ease; display: none; }
+        .unread-badge { background: #ef4444; color: white; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 10px; margin-left: auto; }
+        .nav-badge { position: absolute; top: 4px; right: 15px; background: #ef4444; width: 8px; height: 8px; border-radius: 50%; display: none; }
+        .favorites-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 2000; display: none; flex-direction: column; }
+        .fav-content { flex: 1; overflow-y: auto; padding-bottom: 20px; }
+        .fav-item { background: white; padding: 15px; margin: 10px 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .fav-header { font-size: 13px; color: var(--primary); font-weight: 600; margin-bottom: 6px; }
+        .fav-text { font-size: 14px; color: var(--text); line-height: 1.5; margin-bottom: 8px; }
+        .fav-img { max-width: 100px; max-height: 100px; border-radius: 8px; object-fit: cover; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="notification" id="notification"></div>
+
+    <div id="matching-overlay" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); z-index: 1000; flex-direction: column; align-items: center; justify-content: center;">
+        <div style="width: 100px; height: 100px; border-radius: 50%; border: 4px solid var(--primary); border-top-color: transparent; animation: spin 1s linear infinite; margin-bottom: 25px;"></div>
+        <h4 style="color: var(--text); font-weight: 700; font-size: 18px;">雷达正在扫描...</h4>
+        <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 30px;">正在为你寻找有趣的灵魂</p>
+        <button class="add-btn" style="background: #ef4444; padding: 10px 30px;" onclick="cancelMatching()">取消匹配</button>
+    </div>
+
+    <div class="friend-popup" id="friend-prompt">
+        <h5 style="font-weight: 700; color: var(--primary); margin-bottom: 10px;">聊得火热 🔥</h5>
+        <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 16px;">你们已经聊了很久啦，要不要加个好友方便下次联系？</p>
+        <div style="display: flex; gap: 10px;">
+            <button class="add-btn" style="flex: 1; background: #e2e8f0; color: var(--text);" onclick="$('#friend-prompt').hide()">再看看</button>
+            <button class="add-btn" style="flex: 1;" onclick="sendFriendRequest()">加为好友</button>
+        </div>
+    </div>
+
+    <div class="favorites-overlay" id="favorites-page">
+        <div class="top-bar">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <i class="bi bi-chevron-left" onclick="$('#favorites-page').hide()" style="font-size: 22px; cursor: pointer; font-weight: bold;"></i>
+                <h1 style="margin: 0;">我的收藏</h1>
+            </div>
+        </div>
+        <div class="fav-content" id="fav-list-container"></div>
+    </div>
+
+    <div class="page active" id="page-chat">
+        <div class="top-bar">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <i class="bi bi-chevron-left" id="back-to-friends" style="display: none; font-size: 22px; cursor: pointer; font-weight: bold;"></i>
+                <h1 id="chat-title" style="cursor: pointer; margin: 0;">🏠 淤青大厅</h1>
+            </div>
+            <a href="/logout" style="color: white; text-decoration: none; font-size: 14px; opacity: 0.9;">退出</a>
+        </div>
+        <div class="chat-area" id="msg-box"></div>
+        <div class="input-area">
+            <button class="icon-btn" id="record-btn"><i class="bi bi-mic"></i></button>
+            <label class="icon-btn" style="margin: 0;"><i class="bi bi-paperclip"></i><input type="file" id="file-input" hidden></label>
+            <input type="text" id="input-msg" placeholder="说点什么...">
+            <button class="icon-btn primary" id="send-btn"><i class="bi bi-send-fill"></i></button>
+        </div>
+    </div>
+
+    <div class="page" id="page-match">
+        <div class="top-bar"><h1>💞 在线匹配</h1><div></div></div>
+        <div style="flex: 1; overflow-y: auto; background: var(--bg); padding: 20px;">
+            <div class="create-post" style="text-align: center; padding: 30px 20px;">
+                <h3 style="margin-bottom: 25px; font-weight: 700; color: var(--primary);">灵魂匹配引擎</h3>
+                <div style="text-align: left; margin-bottom: 15px;">
+                    <label style="font-weight: 600; font-size: 14px; margin-bottom: 8px; display: block; color: var(--text-muted);">我是</label>
+                    <select id="match-gender" class="form-select"><option value="男">男生</option><option value="女">女生</option></select>
+                </div>
+                <div style="text-align: left; margin-bottom: 15px;">
+                    <label style="font-weight: 600; font-size: 14px; margin-bottom: 8px; display: block; color: var(--text-muted);">我在</label>
+                    <select id="match-province" class="form-select">
+                        <option value="北京">北京</option><option value="上海">上海</option><option value="广东">广东</option>
+                        <option value="浙江">浙江</option><option value="江苏">江苏</option><option value="四川">四川</option>
+                        <option value="湖北">湖北</option><option value="福建">福建</option><option value="海外">海外及其他</option>
+                    </select>
+                </div>
+                <div style="text-align: left; margin-bottom: 25px;">
+                    <label style="font-weight: 600; font-size: 14px; margin-bottom: 8px; display: block; color: var(--text-muted);">我期望匹配到</label>
+                    <select id="match-preference" class="form-select">
+                        <option value="none">随缘匹配 (不限条件)</option><option value="same_province">同城/同省份</option>
+                        <option value="diff_gender">浪漫异性</option><option value="same_gender">志同道合同性</option>
+                    </select>
+                </div>
+                <button class="add-btn" id="match-btn-submit" style="width: 100%; padding: 14px; font-size: 16px; border-radius: 24px; margin-top: 10px;" onclick="startMatching()">
+                    <i class="bi bi-radar radar-icon" style="margin-right: 5px;"></i> 立即开启匹配
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="page" id="page-friends">
+        <div class="top-bar"><h1>👥 好友与请求</h1></div>
+        <div class="friends-list">
+            <div class="section-title">收到的好友请求</div>
+            <div id="friend-requests"></div>
+            <div class="section-title">我的好友</div>
+            <div id="friend-list"></div>
+        </div>
+    </div>
+
+    <div class="page" id="page-moments">
+        <div class="top-bar"><h1>🌟 动态空间</h1><div></div></div>
+        <div style="flex: 1; overflow-y: auto; background: var(--bg);">
+            <div class="create-post">
+                <textarea id="post-content" placeholder="分享此时此刻的想法..."></textarea>
+                <div class="create-post-actions">
+                    <label class="icon-btn" style="margin: 0; position: relative;">
+                        <i class="bi bi-image"></i>
+                        <input type="file" id="post-image" hidden accept="image/*">
+                        <span id="image-badge" style="display:none; position:absolute; top:5px; right:5px; width:8px; height:8px; background:red; border-radius:50%;"></span>
+                    </label>
+                    <button class="add-btn" id="post-submit-btn" onclick="createPost()">发布</button>
+                </div>
+            </div>
+            <div id="moments-list"></div>
+        </div>
+    </div>
+
+    <div class="page" id="page-profile">
+        <div style="flex: 1; overflow-y: auto;">
+            <div class="profile-header">
+                <input type="file" id="avatar-upload-input" hidden accept="image/*">
+                <div class="profile-avatar" id="profile-avatar" onclick="triggerAvatarUpload()">
+                    {% if avatar %}<img src="/static/uploads/{{ avatar }}" style="width:100%; height:100%; border-radius:inherit; object-fit:cover;" id="my-avatar-img">{% else %}<span id="avatar-text">我</span>{% endif %}
+                </div>
+                <div class="profile-name" id="profile-name" onclick="changeNickname()">{{ nickname or username }} <i class="bi bi-pencil-square" style="font-size: 14px; opacity: 0.6;"></i></div>
+                <div class="profile-id">ID: {{ username }}</div>
+            </div>
+            <div class="menu-list">
+                <div class="menu-item" onclick="openFavorites()"><i class="bi bi-star"></i><span>我的收藏</span><i class="bi bi-chevron-right arrow"></i></div>
+                <div class="menu-item" onclick="$('.nav-item[data-page=\\'chat\\']').click();"><i class="bi bi-chat-dots"></i><span>我的消息</span><i class="bi bi-chevron-right arrow"></i></div>
+                <div class="menu-item" style="color: #ef4444;" onclick="location.href='/logout'"><i class="bi bi-box-arrow-right" style="color: #ef4444;"></i><span>退出登录</span></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bottom-nav">
+        <div class="nav-item active" data-page="chat"><i class="bi bi-chat-square-text-fill"></i><span>大厅</span></div>
+        <div class="nav-item" data-page="match"><i class="bi bi-search-heart-fill"></i><span>匹配</span></div>
+        <div class="nav-item" data-page="friends"><i class="bi bi-people-fill"></i><span>好友</span><div class="nav-badge" id="friend-nav-badge"></div></div>
+        <div class="nav-item" data-page="moments"><i class="bi bi-stars"></i><span>动态</span></div>
+        <div class="nav-item" data-page="profile"><i class="bi bi-person-fill"></i><span>我的</span></div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    let current_mode = "public", current_with = null, last_public_id = 0, last_private_id = 0;
+    let myName = "{{ nickname or username }}", myAvatar = "{{ avatar or '' }}";
+    let myIsAdmin = "{{ is_admin }}" === "True";
+    let mediaRecorder = null, audioChunks = [], postImageData = null, matchTimer = null;
+    let currentFriendsList = [], friendPromptShown = false;
+
+    // 通用渲染函数
+    function renderAvatar(path, fallback) {
+        if (path && path !== "None" && path !== "") return `<img src="/static/uploads/${path}" style="width:100%; height:100%; border-radius:inherit; object-fit:cover;">`;
+        return fallback ? fallback.charAt(0).toUpperCase() : "?";
+    }
+
+    function showNotification(txt) {
+        $("#notification").text(txt).addClass("show");
+        setTimeout(() => $("#notification").removeClass("show"), 2500);
+    }
+
+    // 页面初始化与启动异步轮询
+    $(function() {
+        if (myName && !myAvatar) $("#avatar-text").text(myName.charAt(0).toUpperCase());
+
+        // 启动异步链式轮询，防止卡死
+        scheduleMessageLoad();
+        scheduleDataSync();
+
+        setInterval(() => $.get("/api/heartbeat").catch(() => {}), 30000);
+    });
+
+    // 链式异步加载消息 (完美解决请求堆积卡死网页的问题)
+    function scheduleMessageLoad() {
+        loadMessages(function() {
+            setTimeout(scheduleMessageLoad, 1000);
+        });
+    }
+
+    // 链式异步加载好友、动态和同步删除状态
+    function scheduleDataSync() {
+        $.when(
+            $.get("/api/contacts").then(function(data) {
+                if (Array.isArray(data)) {
+                    currentFriendsList = data.map(f => f.id);
+                    let html = "", totalUnread = 0;
+                    data.forEach(u => {
+                        const dot = u.is_online ? "status-dot" : "status-dot offline";
+                        const badgeHtml = u.unread > 0 ? `<div class="unread-badge">${u.unread}</div>` : "";
+                        totalUnread += (u.unread || 0);
+                        html += `<div class="friend-item" onclick="startChat(${u.id}, '${u.username}')"><div class="avatar">${renderAvatar(u.avatar, u.username)}</div><div class="friend-info"><div class="friend-name">${u.username}</div><div class="friend-status"><span class="${dot}"></span>${u.is_online ? "在线" : "离线"}</div></div>${badgeHtml}</div>`;
+                    });
+                    $("#friend-list").html(html || '<div style="padding: 40px 20px; text-align: center; color: var(--text-muted);">暂无好友</div>');
+                    if (totalUnread > 0) $("#friend-nav-badge").show(); else $("#friend-nav-badge").hide();
+                }
+            }),
+            $.get("/api/friend_requests").then(function(data) {
+                if (Array.isArray(data)) {
+                    let html = "";
+                    data.forEach(r => { html += `<div class="friend-item" style="background: #f8fafc; border-radius: 12px; margin-bottom: 8px; border: 1px dashed var(--primary);"><div class="avatar">${renderAvatar(r.avatar, r.username)}</div><div class="friend-info"><div class="friend-name">${r.username}</div><div class="friend-status" style="color: var(--primary);">请求加为好友</div></div><button class="add-btn" onclick="acceptFriend(${r.id})">同意</button></div>`; });
+                    $("#friend-requests").html(html || '<div style="padding: 10px 20px; font-size: 13px; color: #94a3b8;">暂无新请求</div>');
+                }
+            }),
+            $.get("/api/deleted_messages").then(function(deleted_ids) {
+                if (Array.isArray(deleted_ids)) {
+                    deleted_ids.forEach(id => {
+                        let msgDiv = $(`div.message[data-id="${id}"]`);
+                        if (msgDiv.length > 0 && !msgDiv.hasClass('is-deleted')) {
+                            msgDiv.addClass('is-deleted');
+                            if (msgDiv.hasClass('self')) {
+                                msgDiv.find('.bubble').html("<span style='color:#ef4444; font-size:13px;'><i class='bi bi-exclamation-circle'></i> 该消息已被删除</span>");
+                                msgDiv.find('.delete-msg-btn').remove();
+                            } else {
+                                msgDiv.fadeOut(300, function() { $(this).remove(); });
+                            }
+                        }
+                    });
+                }
+            })
+        ).always(function() {
+            setTimeout(scheduleDataSync, 3000);
+        });
+    }
+
+    $(".nav-item").click(function() {
+        const page = $(this).data("page");
+        $(".nav-item").removeClass("active"); $(this).addClass("active");
+        $(".page").removeClass("active"); $("#page-" + page).addClass("active");
+        if (page === "moments") loadMoments();
+        if (page !== "match" && matchTimer) cancelMatching(true);
+    });
+
+    function backToPublic() {
+        current_mode = "public"; current_with = null;
+        $("#chat-title").text("🏠 淤青大厅");
+        $("#msg-box").empty(); last_public_id = 0;
+        $("#back-to-friends").hide(); $("#friend-prompt").hide();
+    }
+    $("#chat-title").click(function() { if (current_mode !== "public") { backToPublic(); showNotification("已回到大厅"); }});
+    $("#back-to-friends").click(function(e) { e.stopPropagation(); backToPublic(); });
+
+    function triggerAvatarUpload() { $("#avatar-upload-input").click(); }
+    $("#avatar-upload-input").change(function() {
+        if (this.files.length) {
+            const fd = new FormData(); fd.append("avatar", this.files[0]);
+            showNotification("正在上传头像...");
+            $.ajax({
+                url: "/api/upload_avatar", method: "POST", data: fd, processData: false, contentType: false,
+                success: function(res) {
+                    if(res.ok) {
+                        myAvatar = res.avatar;
+                        $("#profile-avatar").html(`<img src="/static/uploads/${myAvatar}" style="width:100%; height:100%; border-radius:inherit; object-fit:cover;" id="my-avatar-img">`);
+                        showNotification("头像更新成功！");
+                    } else showNotification(res.error || "上传失败");
+                }
+            });
+        }
+    });
+
+    function changeNickname() {
+        const name = prompt("请输入新昵称", myName);
+        if (name && name.trim()) {
+            $.post("/api/update_nickname", { nickname: name.trim() }, function(res) {
+                if(res.ok) {
+                    myName = name.trim();
+                    $("#profile-name").html(`${myName} <i class="bi bi-pencil-square" style="font-size: 14px; opacity: 0.6;"></i>`);
+                    if(!myAvatar) $("#avatar-text").text(myName.charAt(0).toUpperCase());
+                    showNotification("昵称已保存并更新");
+                }
+            });
+        }
+    }
+
+    function deleteMessage(id) {
+        if(confirm("确认删除该消息？")) {
+            $.ajax({
+                url: `/api/messages/${id}`, type: "DELETE",
+                success: function(res) {
+                    if(res.ok) { showNotification("指令下达"); }
+                }
+            });
+        }
+    }
+
+    function renderMsg(m) {
+        const isMe = current_mode === "private" ? (m.sender_id === current_with ? false : true) : (m.user === myName);
+        if (m.is_deleted) {
+            if (isMe) {
+                m.content = "<span style='color:#ef4444; font-size:13px;'><i class='bi bi-exclamation-circle'></i> 该消息已被删除</span>";
+                m.file_type = null;
+            } else { return ""; }
+        }
+
+        const msgClass = isMe ? (m.is_deleted ? "message self is-deleted" : "message self") : "message";
+        const avatarUrl = isMe ? myAvatar : m.avatar;
+        const nameStr = isMe ? myName : m.user;
+        let fileHtml = "";
+        let adminBadge = m.is_admin ? '<span class="badge bg-danger ms-1" style="font-size: 10px;">Admin</span>' : '';
+        let deleteBtnHtml = ((isMe || myIsAdmin) && !m.is_deleted) ? `<i class="bi bi-trash-fill delete-msg-btn" onclick="deleteMessage(${m.id})"></i>` : '';
+
+        if (m.file_type === "image") fileHtml = `<img src="/static/uploads/${m.file_path}" style="max-width: 100%; border-radius: 8px; margin-top: 8px;">`;
+        if (m.file_type === "audio") fileHtml = `<audio controls src="/static/uploads/${m.file_path}" style="max-width: 200px; margin-top: 8px;"></audio>`;
+        if (m.file_type === "file") fileHtml = `<a href="/static/uploads/${m.file_path}" target="_blank" style="display: block; margin-top: 8px; color: inherit; text-decoration: underline;">📎 ${m.file_name}</a>`;
+
+        return `<div class="${msgClass}" data-id="${m.id}">${deleteBtnHtml}<div class="avatar">${renderAvatar(avatarUrl, nameStr)}</div><div class="message-content"><div class="message-name">${nameStr}${adminBadge}</div><div class="bubble">${m.content || ""}${fileHtml}</div></div></div>`;
+    }
+
+    function loadMessages(callback) {
+        let url = current_mode === "public" ? `/api/public-messages?last_id=${last_public_id}` : `/api/private-messages?last_id=${last_private_id}&with=${current_with}`;
+        if (current_mode === "private" && !current_with) { if(callback) callback(); return; }
+
+        $.ajax({
+            url: url,
+            method: "GET",
+            success: function (data) {
+                if (Array.isArray(data) && data.length > 0) {
+                    let html = "";
+                    data.forEach(m => {
+                        if ($(`.message[data-id="${m.id}"]`).length > 0) return;
+                        if (current_mode === "public") last_public_id = Math.max(last_public_id, m.id);
+                        else last_private_id = Math.max(last_private_id, m.id);
+                        html += renderMsg(m);
+                    });
+                    if (html !== "") {
+                        $("#msg-box").append(html);
+                        $("#msg-box").scrollTop($("#msg-box")[0].scrollHeight);
+                    }
+
+                    if (current_mode === "private" && current_with) {
+                        let isFriend = currentFriendsList.includes(current_with);
+                        let msgCount = $("#msg-box .message").length;
+                        if (!isFriend && msgCount >= 5 && !friendPromptShown) {
+                            friendPromptShown = true; $("#friend-prompt").show();
+                        }
+                    }
+                }
+            },
+            complete: function() {
+                if(callback) callback();
+            }
+        });
+    }
+
+    function sendText() {
+        const content = $("#input-msg").val().trim();
+        if (!content) return;
+        const fd = new FormData(); fd.append("content", content);
+        if (current_mode === "private" && current_with) fd.append("receiver_id", current_with);
+
+        $("#send-btn").prop("disabled", true);
+        $.ajax({
+            url: "/api/send", method: "POST", data: fd, processData: false, contentType: false,
+            success: () => { $("#input-msg").val(""); if (current_mode === "private") last_private_id = 0; },
+            complete: () => { $("#send-btn").prop("disabled", false); }
+        });
+    }
+
+    function sendFile(file) {
+        const fd = new FormData(); fd.append("file", file);
+        if (current_mode === "private" && current_with) fd.append("receiver_id", current_with);
+        $.ajax({ url: "/api/send", method: "POST", data: fd, processData: false, contentType: false, success: () => { if (current_mode === "private") last_private_id = 0; }});
+    }
+
+    $("#record-btn").click(async function () {
+        if (!mediaRecorder) {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+                mediaRecorder.start();
+                $(this).addClass("recording").html('<i class="bi bi-stop-fill"></i>'); showNotification("正在录音...");
+            } catch (err) { showNotification("无法调用麦克风，请检查权限"); }
+        } else {
+            mediaRecorder.stop();
+            mediaRecorder.onstop = () => {
+                const audioFile = new File([new Blob(audioChunks, { type: "audio/webm" })], `voice_${Date.now()}.webm`, { type: "audio/webm" });
+                sendFile(audioFile); mediaRecorder = null;
+                $("#record-btn").removeClass("recording").html('<i class="bi bi-mic"></i>'); showNotification("语音已发送");
+            };
+        }
+    });
+
+    $("#file-input").change(function () { if (this.files.length) sendFile(this.files[0]); this.value = ""; });
+    $("#send-btn").click(sendText);
+    $("#input-msg").keypress(e => e.which === 13 && sendText());
+
+    function sendFriendRequest() {
+        if (!current_with) return;
+        $.post(`/api/add_friend/${current_with}`, function() { showNotification("请求已发送"); $("#friend-prompt").hide(); });
+    }
+    function acceptFriend(reqId) {
+        $.post(`/api/accept_friend/${reqId}`, function(res) { if(res.ok) { showNotification("已加为好友"); }});
+    }
+
+    function startChat(id, name) {
+        current_mode = "private"; current_with = id;
+        $("#chat-title").text(`💬 正在与 ${name} 私聊`);
+        $("#msg-box").empty(); last_private_id = 0; friendPromptShown = false; $("#friend-prompt").hide();
+        $("#back-to-friends").show();
+        $(".nav-item").removeClass("active"); $(".nav-item[data-page='chat']").addClass("active");
+        $(".page").removeClass("active"); $("#page-chat").addClass("active");
+    }
+
+    function startMatching() {
+        const data = { gender: $("#match-gender").val(), province: $("#match-province").val(), preference: $("#match-preference").val() };
+        $("#matching-overlay").css("display", "flex"); $("#match-btn-submit").prop("disabled", true);
+        $.ajax({
+            url: "/api/start_match", type: "POST", contentType: "application/json", data: JSON.stringify(data),
+            success: function(res) {
+                if (res.status === "success") matchFound(res.peer_id, res.peer_name);
+                else matchTimer = setInterval(checkMatchStatus, 2000);
+            },
+            error: function() { cancelMatching(true); showNotification("服务器连接失败"); },
+            complete: function() { $("#match-btn-submit").prop("disabled", false); }
+        });
+    }
+    function checkMatchStatus() { $.get("/api/check_match_status", function(res) { if (res.status === "matched") matchFound(res.peer_id, res.peer_name); }); }
+    function matchFound(peerId, peerName) {
+        clearInterval(matchTimer); matchTimer = null; $("#matching-overlay").hide(); $.post("/api/stop_match");
+        showNotification("💖 匹配成功！"); startChat(peerId, peerName);
+    }
+    function cancelMatching(silent = false) {
+        if(matchTimer) { clearInterval(matchTimer); matchTimer = null; }
+        $("#matching-overlay").hide(); $.post("/api/stop_match");
+        if(!silent) showNotification("已取消匹配");
+    }
+
+    let moments = [];
+    function loadMoments() {
+        $.get("/api/moments", function(data) { if (Array.isArray(data)) { moments = data; renderMoments(); }});
+    }
+    $("#post-image").change(function() {
+        if (this.files.length) { postImageData = this.files[0]; $("#image-badge").show(); showNotification("已选择图片"); }
+        else { postImageData = null; $("#image-badge").hide(); }
+    });
+
+    function createPost() {
+        const content = $("#post-content").val().trim();
+        if (!content && !postImageData) { showNotification("内容或图片不能都为空"); return; }
+        const fd = new FormData(); fd.append("content", content);
+        if (postImageData) fd.append("image", postImageData);
+        $("#post-submit-btn").prop("disabled", true).text("发布中...");
+        $.ajax({
+            url: "/api/moments", method: "POST", data: fd, processData: false, contentType: false,
+            success: function() {
+                $("#post-content").val(""); $("#post-image").val(""); postImageData = null; $("#image-badge").hide();
+                showNotification("发布成功！"); loadMoments();
+            },
+            error: function() { showNotification("发布失败"); },
+            complete: function() { $("#post-submit-btn").prop("disabled", false).text("发布"); }
+        });
+    }
+
+    function renderMoments() {
+        let html = "";
+        if (moments.length === 0) { html = '<div style="padding: 50px 20px; text-align: center; color: var(--text-muted);">暂无动态，发一条试试！</div>'; }
+        else {
+            moments.forEach(m => {
+                let imagesHtml = m.image ? `<div class="post-images"><img src="/static/uploads/${m.image}" alt="动态图片" onclick="window.open(this.src)"></div>` : "";
+
+                let deleteHtml = (m.is_owner || myIsAdmin) ? `<i class="bi bi-trash-fill delete-btn" onclick="deletePost(${m.id})"></i>` : "";
+                let adminBadge = m.is_admin ? '<span class="badge bg-danger ms-2" style="font-size: 10px; font-weight: normal; vertical-align: middle;">Admin</span>' : '';
+
+                let heartClass = m.is_liked ? "bi-heart-fill" : "bi-heart";
+                let likeBtnClass = m.is_liked ? "action-btn liked" : "action-btn";
+                let starClass = m.is_favorited ? "bi-star-fill" : "bi-star";
+                let favBtnClass = m.is_favorited ? "action-btn favorited" : "action-btn";
+                let commentsHtml = "";
+                if (m.comments && m.comments.length > 0) m.comments.forEach(c => commentsHtml += `<div class="comment-item"><span class="comment-user">${c.user}:</span>${c.content}</div>`);
+
+                html += `
+                <div class="post-card">
+                    ${deleteHtml}
+                    <div class="post-header"><div class="avatar">${renderAvatar(m.avatar, m.user)}</div><div class="post-author"><div class="post-author-name">${m.user}${adminBadge}</div><div class="post-time">${m.time}</div></div></div>
+                    ${m.content ? `<div class="post-content">${m.content}</div>` : ''}
+                    ${imagesHtml}
+                    <div class="post-actions">
+                        <div class="${likeBtnClass}" id="like-btn-${m.id}" onclick="likePost(${m.id})"><i class="bi ${heartClass}"></i><span id="like-cnt-${m.id}">${m.likes}</span></div>
+                        <div class="action-btn" onclick="toggleCommentBox(${m.id})"><i class="bi bi-chat"></i><span>评论</span></div>
+                        <div class="${favBtnClass}" id="fav-btn-${m.id}" onclick="toggleFavorite(${m.id})"><i class="bi ${starClass}"></i><span>收藏</span></div>
+                    </div>
+                    <div class="comments-section" id="comments-section-${m.id}" style="display: ${m.comments.length > 0 ? 'block' : 'none'}">
+                        <div id="comments-list-${m.id}">${commentsHtml}</div>
+                        <div class="comment-input-wrap" id="comment-input-box-${m.id}" style="display: none;"><input type="text" id="comment-input-${m.id}" placeholder="写评论..."><button class="comment-send-btn" onclick="submitComment(${m.id})">发送</button></div>
+                    </div>
+                </div>`;
+            });
+        }
+        $("#moments-list").html(html);
+    }
+
+    function deletePost(id) {
+        if(confirm("确定要删除这条动态吗？")) {
+            $.ajax({ url: `/api/moments/${id}`, type: "DELETE", success: function(res) { if(res.ok) { showNotification("已删除"); loadMoments(); } }});
+        }
+    }
+
+    function likePost(id) {
+        $.post(`/api/moments/${id}/like`, function(data) {
+            if (data.ok) {
+                $(`#like-cnt-${id}`).text(data.likes);
+                let btn = $(`#like-btn-${id}`), icon = btn.find('i');
+                if (data.action === "liked") { icon.removeClass('bi-heart').addClass('bi-heart-fill'); btn.addClass('liked'); }
+                else { icon.removeClass('bi-heart-fill').addClass('bi-heart'); btn.removeClass('liked'); }
+            }
+        });
+    }
+
+    function toggleCommentBox(id) {
+        $(`#comments-section-${id}`).show();
+        let box = $(`#comment-input-box-${id}`);
+        box.toggle();
+        if(box.is(":visible")) $(`#comment-input-${id}`).focus();
+    }
+
+    function submitComment(id) {
+        const content = $(`#comment-input-${id}`).val().trim();
+        if(!content) return;
+        $.post(`/api/moments/${id}/comment`, {content: content}, function(res) {
+            if(res.ok) { showNotification("评论成功"); loadMoments(); }
+        });
+    }
+
+    function toggleFavorite(id) {
+        $.post(`/api/moments/${id}/favorite`, function(data) {
+            if (data.ok) {
+                let btn = $(`#fav-btn-${id}`), icon = btn.find('i');
+                if (data.action === "favorited") { icon.removeClass('bi-star').addClass('bi-star-fill'); btn.addClass('favorited'); showNotification("已收藏"); }
+                else { icon.removeClass('bi-star-fill').addClass('bi-star'); btn.removeClass('favorited'); showNotification("已取消收藏"); }
+            }
+        });
+    }
+
+    function openFavorites() {
+        $.get("/api/favorites", function(data) {
+            let html = "";
+            if (data.length === 0) html = '<div style="padding: 50px 20px; text-align: center; color: var(--text-muted);">暂无收藏</div>';
+            else {
+                data.forEach(m => {
+                    let imgHtml = m.image ? `<img src="/static/uploads/${m.image}" class="fav-img mt-2">` : '';
+                    html += `<div class="fav-item" onclick="$('#favorites-page').hide(); $('.nav-item[data-page=\\'moments\\']').click();"><div class="fav-header">${m.user} 的动态 <span style="color:#94a3b8; font-weight:normal; font-size:12px; margin-left:10px;">${m.time}</span></div><div class="fav-text">${m.content || '[图片动态]'}</div>${imgHtml}</div>`;
+                });
+            }
+            $("#fav-list-container").html(html);
+            $("#favorites-page").css("display", "flex");
+        });
+    }
+</script>
+</body>
+</html>
