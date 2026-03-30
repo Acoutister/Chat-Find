@@ -78,32 +78,3 @@ Bash
 python generate_codes.py
 控制台会打印出 5 个类似 A8KF92XP 的邀请码，复制其中一个。
 
-5. 访问应用
-打开浏览器，访问：
-
-前台入口: http://127.0.0.1:5000/ (使用刚才的邀请码注册并登录，第一个注册的用户将自动成为超级管理员)
-
-后台管理: http://127.0.0.1:5000/admin (只能在运行代码的本机上访问)
-
-📁 项目结构 (Project Structure)
-Plaintext
-Feibos-Bruise/
-│
-├── app.py                  # Flask 后端主程序 (路由、模型、API)
-├── generate_codes.py       # 邀请码生成脚本工具
-├── site.db                 # SQLite 数据库文件 (自动生成)
-│
-├── templates/              # HTML 模板目录
-│   ├── login.html          # 登录页
-│   ├── register.html       # 注册页 (含邀请码校验)
-│   ├── chat.html           # 核心 SPA 单页应用 (包含大厅、匹配、好友、动态、我的)
-│   └── admin.html          # 管理员后台大盘页面
-│
-└── static/
-    └── uploads/            # 用户上传的图片、语音、头像存储目录 (自动生成)
-💡 开发与部署建议 (Deployment Tips)
-测试匹配功能：匹配功能需要至少两人同时参与。建议在电脑上使用正常的浏览器登录账号 A，再使用**浏览器的“无痕/隐身模式”**登录账号 B 进行测试。
-
-关于卡顿优化：本项目前端采用了安全的链式异步轮询 (setTimeout Chaining) 获取新消息，完美解决了传统 setInterval 在网络波动时造成的请求堆积和页面假死问题。
-
-上云部署：如果要将项目部署到公网服务器（如阿里云、腾讯云），请将运行参数修改为 app.run(host='0.0.0.0', port=80)，并确保服务器的安全组开放了对应端口。部署后若需访问后台，可通过 SSH 隧道映射本地端口以绕过 local_only 限制。
